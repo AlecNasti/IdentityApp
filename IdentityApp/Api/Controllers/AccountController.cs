@@ -56,13 +56,12 @@ namespace Api.Controllers
 
             return CreateApplicationUserDto(user);
         }
-
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto model)
         {
             if (await CheckEmailExistsAsync(model.Email))
             {
-                return BadRequest($"An existing account is using {model.Email}, email addres. Please try with another email address");
+                return BadRequest($"An existing account is using {model.Email}, email address. Please try with another email address");
             }
             var userToAdd = new User
             {
@@ -79,7 +78,7 @@ namespace Api.Controllers
                 return BadRequest(result.Errors);
             }
 
-            return Ok("Your account has been created, you can login");
+            return Ok(new JsonResult(new { title = "Account Created", message = "Your account has been created, you can login" }));
         }
         #region helper
         private UserDto CreateApplicationUserDto(User user)
