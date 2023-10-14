@@ -218,9 +218,9 @@ namespace Api.Controllers
                 return Unauthorized("This email has not been registered yet");
             }
 
-            if (user.EmailConfirmed is true)
+            if (user.EmailConfirmed is false)
             {
-                return BadRequest("Your email has been confirmed already. Please login to your account");
+                return BadRequest("Please confirm your email, to be able to reset the password");
             }
 
             try

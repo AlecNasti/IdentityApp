@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { AccountService } from '../account/account.service';
-import { User } from '../shared/Models/User';
+import { User } from '../shared/Models/account/User';
 
 @Component({
   selector: 'app-navbar',

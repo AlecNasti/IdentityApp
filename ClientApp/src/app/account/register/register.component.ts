@@ -4,7 +4,7 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { SharedService } from 'src/app/shared/shared.service';
 import { Router } from '@angular/router';
 import { take } from 'rxjs';
-import { User } from 'src/app/shared/Models/User';
+import { User } from 'src/app/shared/Models/account/User';
 
 @Component({
   selector: 'app-register',

@@ -3,7 +3,7 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { AccountService } from '../account.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { take } from 'rxjs';
-import { User } from 'src/app/shared/Models/User';
+import { User } from 'src/app/shared/Models/account/User';
 
 @Component({
   selector: 'app-login',
@@ -16,14 +16,16 @@ export class LoginComponent implements OnInit {
   errorMessages: string[] = [];
   returnUrl: string | null = null;
 
-  constructor(private accountService: AccountService,
+  constructor(
+    private accountService: AccountService,
     private formBuilder: FormBuilder,
     private router: Router,
-    private activatedRouter: ActivatedRoute) {
+    private activatedRouter: ActivatedRoute
+  ) {
     this.accountService.user$.pipe(take(1)).subscribe({
       next: (user: User | null) => {
         if (user) {
-          this.router.navigateByUrl("/");
+          this.router.navigateByUrl('/');
         } else {
           this.activatedRouter.queryParamMap.subscribe({
             next: (params: any) => {
@@ -31,10 +33,10 @@ export class LoginComponent implements OnInit {
                 this.returnUrl = params.get('returnUrl');
               }
             }
-          })
+          });
         }
       }
-    })
+    });
   }
 
   ngOnInit(): void {
@@ -45,7 +47,7 @@ export class LoginComponent implements OnInit {
     this.loginForm = this.formBuilder.group({
       userName: ['', Validators.required],
       password: ['', Validators.required]
-    })
+    });
   }
 
   login() {
@@ -56,9 +58,9 @@ export class LoginComponent implements OnInit {
       this.accountService.login(this.loginForm.value).subscribe({
         next: (response: any) => {
           if (this.returnUrl) {
-            this.router.navigateByUrl(this.returnUrl)
+            this.router.navigateByUrl(this.returnUrl);
           } else {
-            this.router.navigateByUrl('/')
+            this.router.navigateByUrl('/');
           }
         },
         error: error => {
@@ -69,7 +71,13 @@ export class LoginComponent implements OnInit {
             this.errorMessages.push(error.error);
           }
         }
-      })
+      });
     }
   }
+
+  resendEmailConfirmationLink(){
+    this.router.navigateByUrl('/account/send-email/resend-email-confirmation-link');
+  }
+
+
 }

@@ -1,11 +1,13 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Register } from '../shared/Models/register';
+import { Register } from '../shared/Models/account/register';
 import { enviroment } from 'src/enviroments/enviroment.development';
-import { Login } from '../shared/Models/Login';
-import { User } from '../shared/Models/User';
+import { Login } from '../shared/Models/account/Login';
+import { User } from '../shared/Models/account/User';
 import { ReplaySubject, map, of } from 'rxjs';
 import { Router } from '@angular/router';
+import { ConfirmEmail } from '../shared/Models/account/ConfirmEmail';
+import { ResetPassword } from '../shared/Models/account/resetPassword';
 
 @Injectable({
   providedIn: 'root'
@@ -66,6 +68,22 @@ export class AccountService {
     } else {
       return null
     }
+  }
+
+  ConfirmEmail(model: ConfirmEmail){
+    return this.http.put(`${enviroment.appUrl}/api/account/confirm-email`, model);
+  }
+
+  resendEmailConfirmationLink(email: string){
+    return this.http.post(`${enviroment.appUrl}/api/account/resend-email-confirmation-link/${email}`, {});
+  }
+
+  forgotUsernameOrPassword(email: string){
+    return this.http.post(`${enviroment.appUrl}/api/account/forgot-username-or-password/${email}`, {});
+  }
+
+  resetPassword(model: ResetPassword){
+    return this.http.put(`${enviroment.appUrl}/api/account/reset-password`, model);
   }
 
   //salviamo l'utente dentro la memoria locale di angular per poi riutilizzarlo come "observable" quando ne abbiamo bisogno
