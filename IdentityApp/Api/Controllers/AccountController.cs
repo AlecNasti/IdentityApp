@@ -1,6 +1,8 @@
 ﻿using Api.DTOs.Account;
+using Api.Helpers;
 using Api.Models;
 using Api.Services;
+using Google.Apis.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -67,6 +69,36 @@ namespace Api.Controllers
 
             return CreateApplicationUserDto(user);
         }
+
+        [HttpPost("login-with-third-party")]
+        public async Task<ActionResult<UserDto>> LoginWithThirdParty(LoginWithExternalDto model)
+        {
+            if (model.Provider.Equals(SD.Google))
+            {
+                try
+                {
+                    if (!GoogleValidatedAsync(model.AccessToken, model.UserId).GetAwaiter().GetResult())
+                    {
+                        return Unauthorized("Unable to login with google");
+                    }
+                }
+                catch (Exception)
+                {
+                    return Unauthorized("Unable to login with google");
+                }
+            }
+            else
+            {
+                return BadRequest("Invalid provider");
+            }
+
+            var user = await _userManager.Users.FirstOrDefaultAsync(x => x.UserName == model.UserId && x.Provider == model.Provider);
+            if (user == null) return Unauthorized("Unable to find your account");
+
+            return CreateApplicationUserDto(user);
+        }
+
+
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterDto model)
         {
@@ -97,6 +129,62 @@ namespace Api.Controllers
                 }
                 return BadRequest("Failed to send email, Please contact us");
 
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return BadRequest("Failed to send email, Please contact us");
+            }
+
+        }
+
+        [HttpPost("register-with-third-party")]
+        public async Task<ActionResult<UserDto>> RegisterWithThirdParty(RegisterWithExternal model)
+        {
+            if (model.Provider.Equals(SD.Google))
+            {
+                try
+                {
+                    if (!GoogleValidatedAsync(model.AccessToken, model.UserId).GetAwaiter().GetResult())
+                    {
+                        return Unauthorized("Unable to register with google");
+                    }
+                }
+                catch (Exception)
+                {
+                    return Unauthorized("Unable to register with google");
+                }
+            }
+            else
+            {
+                return BadRequest("Invalid provider");
+            }
+
+            try
+            {
+                var user = await _userManager.FindByNameAsync(model.UserId);
+                if (user != null) return BadRequest(string.Format("You have an account already. Please login with your {0}", model.Provider));
+
+                var userToAdd = new User
+                {
+                    FirstName = model.FirstName.ToLower(),
+                    LastName = model.LastName.ToLower(),
+                    UserName = model.UserId,
+                    Provider = model.Provider,
+                    Email = model.email
+                };
+
+                var result = await _userManager.CreateAsync(userToAdd);
+                if (!result.Succeeded) 
+                {
+                    return BadRequest(result.Errors);
+                }
+
+                if (await SendConfirmEmailAsync(userToAdd))
+                {
+                    return CreateApplicationUserDto(userToAdd);
+                }
+                return BadRequest("Failed to send email, Please contact us");
             }
             catch (Exception ex)
             {
@@ -196,7 +284,7 @@ namespace Api.Controllers
 
             try
             {
-                if(await SendForgotUsernameOrPasswordEmail(user))
+                if (await SendForgotUsernameOrPasswordEmail(user))
                 {
                     return Ok(new JsonResult(new { title = "Forgot username or password email sent", message = "Please check your email" }));
                 }
@@ -293,6 +381,40 @@ namespace Api.Controllers
             var emailSend = new EmailSendDto(user.Email, "Forgot username or password", body);
 
             return await _emailService.SendEmailAsync(emailSend);
+        }
+
+        private async Task<bool> GoogleValidatedAsync(string accessToken, string userId)
+        {
+            var payload = await GoogleJsonWebSignature.ValidateAsync(accessToken);
+
+            if (!payload.Audience.Equals(_config["Google:ClientId"]))
+            {
+                return false;
+            }
+
+            if (!payload.Issuer.Equals("accounts.google.com") && !payload.Issuer.Equals("https://accounts.google.com"))
+            {
+                return false;
+            }
+
+            if (payload.ExpirationTimeSeconds == null)
+            {
+                return false;
+            }
+
+            DateTime now = DateTime.Now.ToUniversalTime();
+            DateTime expiration = DateTimeOffset.FromUnixTimeSeconds((long)payload.ExpirationTimeSeconds).DateTime;
+            if (now > expiration)
+            {
+                return false;
+            }
+
+            if (!payload.Subject.Equals(userId))
+            {
+                return false;
+            }
+
+            return true;
         }
 
         #endregion
