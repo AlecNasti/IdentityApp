@@ -1,4 +1,5 @@
 using Api.Data;
+using Api.Helpers;
 using Api.Models;
 using Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -24,6 +26,7 @@ builder.Services.AddDbContext<Context>(options =>
 
 builder.Services.AddScoped<JWTService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<ContextSeedService>();
 
 builder.Services.AddIdentityCore<User>(options =>
 {
@@ -76,6 +79,23 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
     };
 });
 
+builder.Services.AddAuthorization(opt =>
+{
+    opt.AddPolicy(SD.AdminPolicy, policy => policy.RequireRole(SD.AdminRole));
+    opt.AddPolicy(SD.ManagerPolicy, policy => policy.RequireRole(SD.ManagerRole));
+    opt.AddPolicy(SD.PlayerPolicy, policy => policy.RequireRole(SD.PlayerRole));
+
+    opt.AddPolicy(SD.AdminOrManagerPolicy, policy => policy.RequireRole(SD.AdminRole, SD.ManagerRole));
+    opt.AddPolicy(SD.AdminAndManagerPolicy, policy => policy.RequireRole(SD.AdminRole).RequireRole(SD.ManagerRole));
+    opt.AddPolicy(SD.AllRolePolicy, policy => policy.RequireRole(SD.AdminRole, SD.ManagerRole, SD.PlayerRole));
+
+    opt.AddPolicy(SD.AdminEmailPolicy, policy => policy.RequireClaim(ClaimTypes.Email, SD.ClaimAdminEmail));
+    opt.AddPolicy(SD.PowerSurnamePolicy, policy => policy.RequireClaim(ClaimTypes.Surname, SD.ClaimPowerSurname));
+    opt.AddPolicy(SD.ManagerEmailAndPowerSurnamePolicy, policy => policy.RequireClaim(ClaimTypes.Surname, SD.ClaimPowerSurname)
+    .RequireClaim(ClaimTypes.Email, SD.ClaimManagerEmail));
+    opt.AddPolicy("VipPolicy", policy => policy.RequireAssertion(context => SD.VIPPolicy(context)));
+});
+
 var app = builder.Build();
 
 app.UseCors(opt =>
@@ -98,5 +118,19 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+#region context seed
+using var scope = app.Services.CreateScope();
+try
+{
+    var contextSeedService = scope.ServiceProvider.GetService<ContextSeedService>();
+    await contextSeedService.InizializeContextAsync();
+}
+catch (Exception ex)
+{
+    var logger = scope.ServiceProvider.GetService<ILogger<Program>>();
+    logger.LogError(ex.Message, "failed to start and seed the database");
+}
+#endregion
 
 app.Run();
